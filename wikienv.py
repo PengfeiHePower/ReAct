@@ -4,11 +4,13 @@ import time
 import gym
 import requests
 from bs4 import BeautifulSoup
+import re
 
 # import wikipedia
 
 def clean_str(p):
-  return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+  # return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+  return p
 
 
 class textSpace(gym.spaces.Space):
@@ -114,6 +116,7 @@ class WikiEnv(gym.Env):
       else:
         self.page = ""
         for p in page:
+          # print(f"p:{p}")
           if len(p.split(" ")) > 2:
             self.page += clean_str(p)
             if not p.endswith("\n"):
@@ -145,8 +148,11 @@ class WikiEnv(gym.Env):
       else:
         self.obs = f"(Result {self.lookup_cnt + 1} / {len(self.lookup_list)}) " + self.lookup_list[self.lookup_cnt]
         self.lookup_cnt += 1
-    elif action.startswith("finish[") and action.endswith("]"):
-      answer = action[len("finish["):-1]
+    # elif action.startswith("finish[") and action.endswith("]"):
+    elif re.search(r'finish\[(.*?)\]', action):
+      match = re.search(r'finish\[(.*?)\]', action)
+      answer = match.group(1)
+      # answer = action[len("finish["):-1]
       self.answer = answer
       done = True
       self.obs = f"Episode finished, reward = {reward}\n"
