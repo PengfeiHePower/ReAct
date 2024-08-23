@@ -34,7 +34,7 @@ def save_checkpoint(index, chk_file):
 import wikienv, wrappers
 import requests
 env = wikienv.WikiEnv()
-env = wrappers.HotPotQAWrapper(env, split="dev")
+env = wrappers.HotPotQAWrapper(env, split="simple")
 env = wrappers.LoggingWrapper(env)
 
 def extract_dict_from_string(output_string):
@@ -77,7 +77,7 @@ def llm(input_text, model, stop=["\n"]):
                     "Authorization": "Bearer " + HTTP_LLM_API_KEY
                     }
         data = {
-                "model": 'gpt-4',
+                "model": 'gpt-4-turbo',
                 "messages": [
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": input_text}
@@ -219,14 +219,17 @@ def webthink(idx=None, prompt=webthink_prompt, to_print=True, model=None, analys
     info.update({'n_calls': n_calls, 'n_badcalls': n_badcalls, 'traj': prompt})
     return r, info
 
-idxs = list(range(7405))
+
+idxs = min(len(env.data),1000)
+print(f"idxs:{idxs}")
+# idxs = list(range(7405))
 # random.Random(23).shuffle(idxs)
 
 rs = []
 infos = []
 old_time = time.time()
 start_index = load_checkpoint("checkpoint/" +args.model + '_hotpotqa_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot)+ ".txt")
-for i in idxs[start_index:100]:
+for i in range(start_index, idxs):
     try:
         r, info = webthink(i, to_print=True, model=args.model, analysis=args.analysis, attack=args.attack)
         rs.append(info['em'])

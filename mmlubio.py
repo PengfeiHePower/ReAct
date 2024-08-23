@@ -18,6 +18,17 @@ parser.add_argument("--attack", type=str, default='clean', choices=['clean', 'ba
 
 args = parser.parse_args()
 
+def load_checkpoint(chk_file):
+    try:
+        with open(chk_file, "r") as f:
+            return int(f.read().strip())
+    except FileNotFoundError:
+        return 0  # no checkpoint file, start from beginning
+
+def save_checkpoint(index, chk_file):
+    with open(chk_file, "w") as f:
+        f.write(str(index))
+
 
 
 import wikienv, wrappers
@@ -195,19 +206,28 @@ def webthink(idx=None, prompt=webthink_prompt, to_print=True, model=None, analys
     info.update({'n_calls': n_calls, 'n_badcalls': n_badcalls, 'traj': prompt})
     return r, info
 
-idxs = list(range(7405))
+
+idxs = min(len(env.data),1000)
+print(f"idxs:{idxs}")
+# idxs = list(range(7405))
 # random.Random(23).shuffle(idxs)
 
 rs = []
 infos = []
 old_time = time.time()
-for i in idxs[:100]:
-    r, info = webthink(i, to_print=True, model=args.model, analysis=args.analysis, attack=args.attack)
-    rs.append(info['em'])
-    infos.append(info)
-    print(sum(rs), len(rs), sum(rs) / len(rs), (time.time() - old_time) / len(rs))
-    print('-----------')
-    print()
+start_index = load_checkpoint("checkpoint/" +args.model + '_mmlubio_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot)+ ".txt")
+for i in range(start_index, idxs):
+    try:
+        r, info = webthink(i, to_print=True, model=args.model, analysis=args.analysis, attack=args.attack)
+        rs.append(info['em'])
+        infos.append(info)
+        save_checkpoint(i+1, "checkpoint/" +args.model + '_mmlubio_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot)+ ".txt")
+        print(sum(rs), len(rs), sum(rs) / len(rs), (time.time() - old_time) / len(rs))
+        print('-----------')
+        print()
+    except Exception as e:
+        print(f"Error processing record {i}: {e}")
+        continue
     file_path = 'output/' + args.model + '_mmlubio_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot) +'.json'
     with open(file_path, 'w') as json_file:
         json.dump(infos, json_file)

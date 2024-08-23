@@ -18,6 +18,17 @@ parser.add_argument("--attack", type=str, default='clean', choices=['clean', 'ba
 
 args = parser.parse_args()
 
+def load_checkpoint(chk_file):
+    try:
+        with open(chk_file, "r") as f:
+            return int(f.read().strip())
+    except FileNotFoundError:
+        return 0  # no checkpoint file, start from beginning
+
+def save_checkpoint(index, chk_file):
+    with open(chk_file, "w") as f:
+        f.write(str(index))
+
 
 def llm(input_text, model, stop=["\n"]):
     if model == "gpt4":
@@ -28,7 +39,7 @@ def llm(input_text, model, stop=["\n"]):
                     "Authorization": "Bearer " + HTTP_LLM_API_KEY
                     }
         data = {
-                "model": 'gpt-4',
+                "model": 'gpt-4-turbo',
                 "messages": [
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": input_text}
@@ -201,13 +212,19 @@ idxs = list(range(7405))
 rs = []
 infos = []
 old_time = time.time()
-for i in idxs[:100]:
-    r, info = webthink(i, to_print=True, model=args.model, analysis=args.analysis, attack=args.attack)
-    rs.append(info['em'])
-    infos.append(info)
-    print(sum(rs), len(rs), sum(rs) / len(rs), (time.time() - old_time) / len(rs))
-    print('-----------')
-    print()
+start_index = load_checkpoint("checkpoint/" +args.model + '_fever_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot)+ ".txt")
+for i in idxs[start_index:1000]:
+    try:
+        r, info = webthink(i, to_print=True, model=args.model, analysis=args.analysis, attack=args.attack)
+        rs.append(info['em'])
+        infos.append(info)
+        save_checkpoint(i+1, "checkpoint/" +args.model + '_fever_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot)+ ".txt")
+        print(sum(rs), len(rs), sum(rs) / len(rs), (time.time() - old_time) / len(rs))
+        print('-----------')
+        print()
+    except Exception as e:
+        print(f"Error processing record {i}: {e}")
+        continue
     file_path = 'output/' + args.model + '_fever_' + args.attack + '_analysis' + str(args.analysis) + '_fewshot' + str(args.fewshot) +'.json'
     with open(file_path, 'w') as json_file:
         json.dump(infos, json_file)
